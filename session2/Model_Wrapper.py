@@ -1,7 +1,5 @@
 import torch
 import numpy as np
-import torchvision
-import torchvision.transforms as transforms
 import seaborn as sn
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score, confusion_matrix
@@ -61,6 +59,7 @@ class Wrapper():
                 loss.backward()
                 self.optimizer.step()
                 if self.warmup_lr : self.warmup_lr.step(epoch) 
+                if self.scheduler : self.scheduler.step (T_curr = epoch,T_max = num_epochs)
 
         
                 preds = torch.argmax(outputs, dim=1)
@@ -122,7 +121,7 @@ class Wrapper():
             # Generate confusion matrix
             print(len(self.true_labels), len(self.predictions))
             cf_matrix = confusion_matrix(self.true_labels, self.predictions)
-            sn.heatmap(cf_matrix, annot=True, fmt="d")
+            sn.heatmap(cf_matrix, annot=True,fmt="d",xticklabels=self.classes, yticklabels=self.classes)
 
             plt.figure(figsize=(12, 7))
             plt.savefig('output.png')

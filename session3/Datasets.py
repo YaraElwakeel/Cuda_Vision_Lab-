@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 
 
 class dataset(Dataset):
-    def __init__(self, root, transform=None,split="train", test_size=0.2, random_state=42):
+    def __init__(self, root, transform=None,split="train", test_size=0.3, random_state=None):
         self.root_dir = root
         self.transform = transform
         self.split = split

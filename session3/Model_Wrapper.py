@@ -6,7 +6,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 import matplotlib.pyplot as plt
 
 class Wrapper():
-    def __init__(self, model, device, criterion, optimizer, scheduler=None, warmup_lr=None):
+    def __init__(self, model, device, criterion, optimizer, scheduler=None, warmup_lr=None,writer = None):
         # Track training and testing loss and accuracy for each epoch
         self.loss_hist = [] 
         self.acc_hist = []
@@ -16,6 +16,9 @@ class Wrapper():
         # Store scheduler and warmup learning rate if provided
         self.scheduler = scheduler
         self.warmup_lr = warmup_lr
+
+        # store the tensorboard writer 
+        self.writer = writer 
         
         # Initialize lists for predictions and true labels for confusion matrix
         self.predictions = []
@@ -81,14 +84,31 @@ class Wrapper():
                 if (i % 10 == 0 or i == len(self.trainloader) - 1):
                     progress_bar.set_description(f"Epoch {epoch + 1} Iter {i + 1}: loss {loss.item():.5f}.")
             
-            # Log epoch loss and accuracy
-            self.loss_hist.append(np.mean(loss_list))
-            self.acc_hist.append(np.mean(acc_list))
+            # compute loss and accuracy mean per epoch
+            acc_mean= np.mean(loss_list)
+            loss_mean = np.mean(acc_list)
+
+            # Log train matrices 
+            self.loss_hist.append(loss_mean)
+            self.acc_hist.append(acc_mean)
+
+            # log metrices in tensorboard
+            self.writer.add_scalar(f"Accuracy/train",acc_mean,global_step = epoch)
+            self.writer.add_scalar(f"Loss/train",loss_mean,global_step = epoch)
 
             # Evaluate on the test data and log test metrics
             loss_test_list, test_accuracy, epoch_predictions, epoch_true_labels = self.eval()
-            self.loss_test_hist.append(np.mean(loss_test_list))
+            
+            # compute loss mean across an epoch 
+            loss_test_mean = np.mean(loss_test_list)
+
+            # log test metrices
+            self.loss_test_hist.append(loss_test_mean)
             self.acc_test_hist.append(test_accuracy)
+
+            # log metrices in tensorboard
+            self.writer.add_scalar(f"Accuracy/test",test_accuracy,global_step = epoch)
+            self.writer.add_scalar(f"Loss/test",loss_test_mean,global_step = epoch)
 
             # Store predictions and true labels for confusion matrix
             self.predictions.extend(epoch_predictions)

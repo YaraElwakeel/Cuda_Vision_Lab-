@@ -6,7 +6,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 import matplotlib.pyplot as plt
 
 class Wrapper():
-    def __init__(self, model, device, criterion, optimizer, scheduler=None, warmup_lr=None,writer = None):
+    def __init__(self, model, device, criterion, optimizer,writer, scheduler=None, warmup_lr=None):
         # Track training and testing loss and accuracy for each epoch
         self.loss_hist = [] 
         self.acc_hist = []
@@ -16,14 +16,14 @@ class Wrapper():
         # Store scheduler and warmup learning rate if provided
         self.scheduler = scheduler
         self.warmup_lr = warmup_lr
-
-        # store the tensorboard writer 
-        self.writer = writer 
         
         # Initialize lists for predictions and true labels for confusion matrix
         self.predictions = []
         self.true_labels = []
         
+        # store the tensorboard writer 
+        self.writer = writer
+
         # Define model parameters
         self.criterion = criterion
         self.optimizer = optimizer
@@ -51,10 +51,11 @@ class Wrapper():
             self.predictions = []
             self.true_labels = []
 
+            self.model.train()
+
             # Display a progress bar for each epoch
             progress_bar = tqdm(self.trainloader, total=len(self.trainloader))
             for i, (inputs, labels) in enumerate(progress_bar):
-                self.model.train()
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 
                 # Forward pass
@@ -73,6 +74,8 @@ class Wrapper():
                 if self.scheduler:
                     self.scheduler.step(T_curr=epoch, T_max=num_epochs)
 
+                if labels.ndimension() > 1:
+                    labels = torch.argmax(labels, dim=1)
                 # Calculate accuracy for current batch
                 preds = torch.argmax(outputs, dim=1)
                 correct += (preds == labels).sum().item()
@@ -84,11 +87,9 @@ class Wrapper():
                 if (i % 10 == 0 or i == len(self.trainloader) - 1):
                     progress_bar.set_description(f"Epoch {epoch + 1} Iter {i + 1}: loss {loss.item():.5f}.")
             
-            # compute loss and accuracy mean per epoch
-            acc_mean= np.mean(loss_list)
-            loss_mean = np.mean(acc_list)
-
-            # Log train matrices 
+            loss_mean = np.mean(loss_list)
+            acc_mean = np.mean(acc_list)
+            # Log epoch loss and accuracy
             self.loss_hist.append(loss_mean)
             self.acc_hist.append(acc_mean)
 
@@ -96,13 +97,10 @@ class Wrapper():
             self.writer.add_scalar(f"Accuracy/train",acc_mean,global_step = epoch)
             self.writer.add_scalar(f"Loss/train",loss_mean,global_step = epoch)
 
+
             # Evaluate on the test data and log test metrics
             loss_test_list, test_accuracy, epoch_predictions, epoch_true_labels = self.eval()
-            
-            # compute loss mean across an epoch 
             loss_test_mean = np.mean(loss_test_list)
-
-            # log test metrices
             self.loss_test_hist.append(loss_test_mean)
             self.acc_test_hist.append(test_accuracy)
 

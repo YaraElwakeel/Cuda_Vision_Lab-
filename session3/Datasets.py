@@ -3,9 +3,9 @@ from PIL import Image
 from torch.utils.data import Dataset
 from sklearn.model_selection import train_test_split
 
-
 class dataset(Dataset):
     def __init__(self, root, transform=None,split="train", test_size=0.3, random_state=None):
+
         self.root_dir = root
         self.transform = transform
         self.split = split
@@ -20,9 +20,11 @@ class dataset(Dataset):
             for img_name in os.listdir(cls_folder):
                 self.image_paths.append(os.path.join(cls_folder, img_name))
                 self.labels.append(idx)
+
         train_paths, test_paths, train_labels, test_labels = train_test_split(
                 self.image_paths, self.labels, test_size=test_size, random_state=random_state, stratify=self.labels
             )
+        
         # Select the subset based on the split argument
         if self.split == "train":
             self.image_paths = train_paths
@@ -46,5 +48,5 @@ class dataset(Dataset):
         # Apply transformations if specified
         if self.transform:
             image = self.transform(image)
-        
+
         return image, label

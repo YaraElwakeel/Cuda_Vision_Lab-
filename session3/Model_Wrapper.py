@@ -6,7 +6,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 import matplotlib.pyplot as plt
 
 class Wrapper():
-    def __init__(self, model, device, criterion, optimizer,writer, scheduler=None, warmup_lr=None):
+    def __init__(self, model, device, criterion, optimizer, writer, scheduler=None, warmup_lr=None, show_progress_bar=True):
         # Track training and testing loss and accuracy for each epoch
         self.loss_hist = [] 
         self.acc_hist = []
@@ -21,7 +21,7 @@ class Wrapper():
         self.predictions = []
         self.true_labels = []
         
-        # store the tensorboard writer 
+        # Store the tensorboard writer 
         self.writer = writer
 
         # Define model parameters
@@ -34,6 +34,9 @@ class Wrapper():
         self.classes = None
         self.testloader = None
         self.trainloader = None
+
+        # Flag for showing progress bar
+        self.show_progress_bar = show_progress_bar
 
     def train(self, num_epochs, trainloader, testloader, classes):
         # Set classes and loaders
@@ -53,8 +56,12 @@ class Wrapper():
 
             self.model.train()
 
-            # Display a progress bar for each epoch
-            progress_bar = tqdm(self.trainloader, total=len(self.trainloader))
+            # Display a progress bar for each epoch if the flag is True
+            if self.show_progress_bar:
+                progress_bar = tqdm(self.trainloader, total=len(self.trainloader))
+            else:
+                progress_bar = self.trainloader
+
             for i, (inputs, labels) in enumerate(progress_bar):
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 
@@ -84,7 +91,7 @@ class Wrapper():
                 acc_list.append(accuracy)
 
                 # Update progress bar description every 10 batches
-                if (i % 10 == 0 or i == len(self.trainloader) - 1):
+                if (i % 10 == 0 or i == len(self.trainloader) - 1) and self.show_progress_bar == True:
                     progress_bar.set_description(f"Epoch {epoch + 1} Iter {i + 1}: loss {loss.item():.5f}.")
             
             loss_mean = np.mean(loss_list)
@@ -93,10 +100,9 @@ class Wrapper():
             self.loss_hist.append(loss_mean)
             self.acc_hist.append(acc_mean)
 
-            # log metrices in tensorboard
-            self.writer.add_scalar(f"Accuracy/train",acc_mean,global_step = epoch)
-            self.writer.add_scalar(f"Loss/train",loss_mean,global_step = epoch)
-
+            # Log metrics in tensorboard
+            self.writer.add_scalar(f"Accuracy/train", acc_mean, global_step=epoch)
+            self.writer.add_scalar(f"Loss/train", loss_mean, global_step=epoch)
 
             # Evaluate on the test data and log test metrics
             loss_test_list, test_accuracy, epoch_predictions, epoch_true_labels = self.eval()
@@ -104,9 +110,9 @@ class Wrapper():
             self.loss_test_hist.append(loss_test_mean)
             self.acc_test_hist.append(test_accuracy)
 
-            # log metrices in tensorboard
-            self.writer.add_scalar(f"Accuracy/test",test_accuracy,global_step = epoch)
-            self.writer.add_scalar(f"Loss/test",loss_test_mean,global_step = epoch)
+            # Log metrics in tensorboard
+            self.writer.add_scalar(f"Accuracy/test", test_accuracy, global_step=epoch)
+            self.writer.add_scalar(f"Loss/test", loss_test_mean, global_step=epoch)
 
             # Store predictions and true labels for confusion matrix
             self.predictions.extend(epoch_predictions)
@@ -153,10 +159,10 @@ class Wrapper():
         else:
             print("No predictions available. Please run `train` first.")
     
-    def valid_accuracy (self):
-            # Print validation accuracy
-            accuracy = accuracy_score(self.true_labels, self.predictions) * 100
-            print(f"Validation accuracy: {round(accuracy, 2)}%")
+    def valid_accuracy(self):
+        # Print validation accuracy
+        accuracy = accuracy_score(self.true_labels, self.predictions) * 100
+        print(f"Validation accuracy: {round(accuracy, 2)}%")
 
     def plot_loss_acc(self):
         # Create subplots for loss and accuracy

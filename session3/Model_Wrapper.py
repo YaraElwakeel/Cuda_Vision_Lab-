@@ -79,7 +79,7 @@ class Wrapper():
                 if self.warmup_lr:
                     self.warmup_lr.step(epoch)
                 if self.scheduler:
-                    self.scheduler.step(T_curr=epoch, T_max=num_epochs)
+                    self.scheduler.step()
 
                 if labels.ndimension() > 1:
                     labels = torch.argmax(labels, dim=1)
@@ -149,22 +149,37 @@ class Wrapper():
 
     def confusion_matrix(self):
         # Check if predictions and true_labels are available
-        if self.true_labels and self.predictions:        
-            # Generate and display the confusion matrix
+        if self.true_labels and self.predictions:
+            # Generate the confusion matrix
             cf_matrix = confusion_matrix(self.true_labels, self.predictions)
-            sn.heatmap(cf_matrix, annot=True, fmt="d", xticklabels=self.classes, yticklabels=self.classes)
-
-            plt.figure(figsize=(12, 7))
-            plt.savefig('output.png')
+            print(cf_matrix)
+            # Plot the heatmap
+            plt.figure(figsize=(12, 7))  # Configure the figure size first
+            sn.heatmap(cf_matrix, annot=True, fmt="d", xticklabels=self.classes, yticklabels=self.classes, cmap="Blues")
+            
+            # Save and display
+            plt.xlabel("Predicted Labels")
+            plt.ylabel("True Labels")
+            plt.title("Confusion Matrix")
+            plt.savefig("output.png")
+            plt.show()
         else:
             print("No predictions available. Please run `train` first.")
+
     
     def valid_accuracy(self):
         # Print validation accuracy
         accuracy = accuracy_score(self.true_labels, self.predictions) * 100
         print(f"Validation accuracy: {round(accuracy, 2)}%")
 
-    def plot_loss_acc(self):
+
+    def concatenate_matrices(self,loss, acc, loss_test, acc_test ):
+        self.loss_hist = self.loss_hist + loss
+        self.loss_test_hist = self.loss_test_hist + loss_test
+        self.acc_hist = self.acc_hist + acc
+        self.acc_test_hist = self.acc_test_hist + acc_test
+
+    def plot_loss_acc(self,line=None):
         # Create subplots for loss and accuracy
         fig, ax = plt.subplots(1, 2)
         fig.set_size_inches(16, 5)
@@ -175,6 +190,10 @@ class Wrapper():
         ax[0].set_xlabel("Epochs")
         ax[0].set_ylabel("Loss")
         ax[0].legend(loc="best")
+        if line:
+            ax[0].axvline(x=line, color="red", ls="--", linewidth=3)
+
+
 
         # Plot training and testing accuracy
         ax[1].plot(self.acc_hist, label="Train Accuracy", color="blue", linewidth=3)
@@ -182,5 +201,6 @@ class Wrapper():
         ax[1].set_xlabel("Epochs")
         ax[1].set_ylabel("Accuracy")
         ax[1].legend(loc="best")
-
+        if line: 
+            ax[1].axvline(x=line, color="red", ls="--", linewidth=3)
         plt.show()

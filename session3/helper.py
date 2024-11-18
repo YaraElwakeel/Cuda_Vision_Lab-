@@ -6,6 +6,7 @@ import torch
 import matplotlib.pyplot as plt
 from Model_Wrapper import Wrapper
 
+
 def new_writer(file,model):
     TBOARD_LOGS = os.path.join(os.getcwd(), "tboard_logs", file, model)
     if not os.path.exists(TBOARD_LOGS):
@@ -41,5 +42,39 @@ def show_grid(data, titles=None):
         plt.axis("off")
         if titles is not None:
             plt.title(titles[i])
+    plt.tight_layout()
+    plt.show()
+
+def plot_combined_loss_acc(train, train_combined, line=None):
+    # Combine histories for losses and accuracies
+    combined_loss_hist = train.loss_hist + train_combined.loss_hist
+    combined_loss_test_hist = train.loss_test_hist + train_combined.loss_test_hist
+    combined_acc_hist = train.acc_hist + train_combined.acc_hist
+    combined_acc_test_hist = train.acc_test_hist + train_combined.acc_test_hist
+
+    # Create a single figure with two subplots
+    fig, axes = plt.subplots(1, 2, figsize=(16, 5))
+
+    # Plot combined loss
+    axes[0].plot(combined_loss_hist, label="Train Loss", color="blue", linewidth=3)
+    axes[0].plot(combined_loss_test_hist, label="Test Loss", color="red", linewidth=3)
+    axes[0].set_title("Combined Loss")
+    axes[0].set_xlabel("Epochs")
+    axes[0].set_ylabel("Loss")
+    axes[0].legend(loc="best")
+    if line:
+        axes[0].axvline(x=line, color="red", ls="--", linewidth=3)  # Show where phase 1 ends
+
+    # Plot combined accuracy
+    axes[1].plot(combined_acc_hist, label="Train Accuracy", color="blue", linewidth=3)
+    axes[1].plot(combined_acc_test_hist, label="Test Accuracy", color="red", linewidth=3)
+    axes[1].set_title("Combined Accuracy")
+    axes[1].set_xlabel("Epochs")
+    axes[1].set_ylabel("Accuracy")
+    axes[1].legend(loc="best")
+    if line:
+        axes[1].axvline(x=line, color="red", ls="--", linewidth=3)  # Show where phase 1 ends
+
+    # Adjust layout and show plot
     plt.tight_layout()
     plt.show()

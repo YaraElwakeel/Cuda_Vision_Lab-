@@ -174,10 +174,10 @@ class Wrapper():
 
 
     def concatenate_matrices(self,loss, acc, loss_test, acc_test ):
-        self.loss_hist = self.loss_hist + loss
-        self.loss_test_hist = self.loss_test_hist + loss_test
-        self.acc_hist = self.acc_hist + acc
-        self.acc_test_hist = self.acc_test_hist + acc_test
+        self.loss_hist.extend(loss) 
+        self.loss_test_hist.extend( loss_test)
+        self.acc_hist.extend(acc) 
+        self.acc_test_hist.extend(acc_test) 
 
     def plot_loss_acc(self,line=None):
         # Create subplots for loss and accuracy

@@ -55,7 +55,7 @@ class LSTMscratch(nn.Module):
 
         # for embedding rows into vector representations
         self.encoder = nn.Sequential(
-                nn.Conv2d(3, 16, 3, 1, 1), nn.ReLU(), nn.MaxPool2d(2),
+                nn.Conv2d(1, 16, 3, 1, 1), nn.ReLU(), nn.MaxPool2d(2),
                 nn.Conv2d(16, 32, 3, 1, 1), nn.ReLU(), nn.MaxPool2d(2),
                 nn.Conv2d(32, input_dim, 3, 1, 1),
                 nn.AdaptiveAvgPool2d((1, 1)))
@@ -65,7 +65,7 @@ class LSTMscratch(nn.Module):
             self.lstms.append(LSTMCell_scratch(input_size=input_dim if layers == 0 else hidden_dim, hidden_size=hidden_dim).to(device))
 
         # FC-classifier
-        self.classifier = nn.Linear(in_features=hidden_dim, out_features=4)
+        self.classifier = nn.Linear(in_features=hidden_dim, out_features=6)
         return
     
 

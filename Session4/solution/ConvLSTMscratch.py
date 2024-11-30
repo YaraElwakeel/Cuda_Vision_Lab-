@@ -124,7 +124,7 @@ class ConvLSTM(nn.Module):
         return init_states
 
 
-    def _extend_for_multilayer(param, num_layers):
+    def _extend_for_multilayer(self, param, num_layers):
         if not isinstance(param, list):
             param = [param] * num_layers
         return param

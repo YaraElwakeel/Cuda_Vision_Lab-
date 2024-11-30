@@ -44,6 +44,7 @@ class Wrapper():
         self.trainloader = trainloader
         self.testloader = testloader
 
+        self.model.train()
         for epoch in range(num_epochs):
             correct = 0 
             total = 0 
@@ -53,8 +54,6 @@ class Wrapper():
             # Reset predictions and true_labels for this epoch
             self.predictions = []
             self.true_labels = []
-
-            self.model.train()
 
             # Display a progress bar for each epoch if the flag is True
             if self.show_progress_bar:

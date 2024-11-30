@@ -44,9 +44,15 @@ class KTH_Dataset(Dataset):
                 video_dir = os.path.join(cls_dir, video)
                 image_files = sorted([os.path.join(video_dir, f) for f in os.listdir(video_dir)
                                       if os.path.isfile(os.path.join(video_dir, f))])
+                i=0
                 for i in range(len(image_files) - self.sequence_length + 1):
-                    sequence = image_files[i:i + self.sequence_length]
-                    samples.append((sequence, self.class_to_idx[cls]))
+                    if (i%15 == 0):
+                        sequence = image_files[i:i + self.sequence_length]
+                        samples.append((sequence, self.class_to_idx[cls]))
+                        i = i + 1
+                    else:
+                        i = i+1
+                        continue
         return samples
 
     def save_samples(self, output_file):

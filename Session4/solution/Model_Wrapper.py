@@ -6,7 +6,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 import matplotlib.pyplot as plt
 
 class Wrapper():
-    def __init__(self, model, device, criterion, optimizer, writer, scheduler=None, warmup_lr=None, show_progress_bar=True):
+    def __init__(self, model, device, criterion, optimizer, writer=None, scheduler=None, warmup_lr=None, show_progress_bar=True):
         # Track training and testing loss and accuracy for each epoch
         self.loss_hist = [] 
         self.acc_hist = []
@@ -99,9 +99,13 @@ class Wrapper():
             self.loss_hist.append(loss_mean)
             self.acc_hist.append(acc_mean)
 
+            print(f"Accuracy/train", acc_mean)
+            print(f"Loss/train", loss_mean)
+
             # Log metrics in tensorboard
-            self.writer.add_scalar(f"Accuracy/train", acc_mean, global_step=epoch)
-            self.writer.add_scalar(f"Loss/train", loss_mean, global_step=epoch)
+            if self.writer :
+                self.writer.add_scalar(f"Accuracy/train", acc_mean, global_step=epoch)
+                self.writer.add_scalar(f"Loss/train", loss_mean, global_step=epoch)
 
             # Evaluate on the test data and log test metrics
             loss_test_list, test_accuracy, epoch_predictions, epoch_true_labels = self.eval()
@@ -109,9 +113,12 @@ class Wrapper():
             self.loss_test_hist.append(loss_test_mean)
             self.acc_test_hist.append(test_accuracy)
 
+            print(f"Accuracy/test", test_accuracy)
+            print(f"Loss/test", loss_test_mean)
             # Log metrics in tensorboard
-            self.writer.add_scalar(f"Accuracy/test", test_accuracy, global_step=epoch)
-            self.writer.add_scalar(f"Loss/test", loss_test_mean, global_step=epoch)
+            if self.writer :
+                self.writer.add_scalar(f"Accuracy/test", test_accuracy, global_step=epoch)
+                self.writer.add_scalar(f"Loss/test", loss_test_mean, global_step=epoch)
 
             # Store predictions and true labels for confusion matrix
             self.predictions.extend(epoch_predictions)

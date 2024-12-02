@@ -1,3 +1,4 @@
+import os
 import torch
 import numpy as np
 import seaborn as sn
@@ -6,7 +7,7 @@ from sklearn.metrics import accuracy_score, confusion_matrix
 import matplotlib.pyplot as plt
 
 class Wrapper():
-    def __init__(self, model, device, criterion, optimizer, writer=None, scheduler=None, warmup_lr=None, show_progress_bar=True):
+    def __init__(self, model_name,model, device, criterion, optimizer, writer=None, scheduler=None, warmup_lr=None, show_progress_bar=True):
         # Track training and testing loss and accuracy for each epoch
         self.loss_hist = [] 
         self.acc_hist = []
@@ -21,6 +22,8 @@ class Wrapper():
         self.predictions = []
         self.true_labels = []
         
+
+        self.model_name = model_name
         # Store the tensorboard writer 
         self.writer = writer
 
@@ -92,6 +95,8 @@ class Wrapper():
                 # Update progress bar description every 10 batches
                 if (i % 10 == 0 or i == len(self.trainloader) - 1) and self.show_progress_bar == True:
                     progress_bar.set_description(f"Epoch {epoch + 1} Iter {i + 1}: loss {loss.item():.5f}.")
+
+                
             
             loss_mean = np.mean(loss_list)
             acc_mean = np.mean(acc_list)
@@ -123,6 +128,9 @@ class Wrapper():
             # Store predictions and true labels for confusion matrix
             self.predictions.extend(epoch_predictions)
             self.true_labels.extend(epoch_true_labels)
+            self.save_model(self.model, self.optimizer, epoch, {"test_accuracy": test_accuracy, "train_accuracy": acc_mean,
+                                                                "test_loss":loss_test_mean, "train_loss": loss_mean})
+
 
     def eval(self):
         correct = 0
@@ -209,4 +217,21 @@ class Wrapper():
         ax[1].legend(loc="best")
         if line: 
             ax[1].axvline(x=line, color="red", ls="--", linewidth=3)
+        
+        plt.savefig("accuracy_plot.png")
         plt.show()
+
+    
+    def save_model(self, model, optimizer, epoch, stats):
+        if(not os.path.exists("models")):
+            os.makedirs("models")
+        savepath = f"models/{self.model_name}checkpoint_epoch_{epoch}.pth"
+
+        torch.save({
+            'epoch': epoch,
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'stats': stats
+        }, savepath)
+        return
+

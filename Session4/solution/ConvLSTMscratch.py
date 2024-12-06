@@ -74,6 +74,8 @@ class ConvLSTM(nn.Module):
                                           bias=self.bias))
 
         self.cell_list = nn.ModuleList(cell_list)
+        self.pool = nn.AvgPool2d(kernel_size=2)
+        self.classifier = nn.Linear(in_features=hidden_dim[-1]*16*16, out_features=6, bias=True)
 
     def forward(self, input_tensor, hidden_state=None):
         if not self.batch_first:
@@ -114,8 +116,11 @@ class ConvLSTM(nn.Module):
         if not self.return_all_layers:
             layer_output_list = layer_output_list[-1:]
             last_state_list = last_state_list[-1:]
-
-        return layer_output_list, last_state_list
+        
+        y = self.pool(h)
+        y = y.view(b,-1)       
+        y = self.classifier(y)
+        return y
 
     def init_hidden(self, batch_size, image_size):
         init_states = []

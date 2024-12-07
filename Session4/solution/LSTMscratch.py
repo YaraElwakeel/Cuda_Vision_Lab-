@@ -29,7 +29,7 @@ class LSTMCell_scratch(nn.Module):
 
 
 class LSTMscratch(nn.Module):
-    def __init__(self, input_dim, hidden_dim, number_of_layers, device, use_custom=True):
+    def __init__(self, input_dim, hidden_dim, number_of_layers, device, use_custom=True, dropout_prob=0.0):
         """
         Args:
             input_dim: The number of input features.
@@ -37,12 +37,13 @@ class LSTMscratch(nn.Module):
             number_of_layers: The number of stacked LSTM layers.
             device: Device (CPU/GPU) to run the model.
             use_custom: If True, use the custom LSTM cell; otherwise, use PyTorch's nn.LSTMCell.
+            dropout_prob: Dropout probability.
         """
         super(LSTMscratch, self).__init__()
-        self.mode = "zeros"
         self.num_layers = number_of_layers
         self.hidden_dim = hidden_dim
         self.use_custom = use_custom
+        self.dropout_prob = dropout_prob
 
         # Encoder for embedding rows into vector representations
         self.encoder = nn.Sequential(
@@ -51,6 +52,10 @@ class LSTMscratch(nn.Module):
             nn.Conv2d(32, input_dim, 3, 1, 1),
             nn.AdaptiveAvgPool2d((1, 1))
         )
+
+        # Dropout layer
+        self.input_dropout = nn.Dropout(dropout_prob)
+        self.recurrent_dropout = nn.Dropout(dropout_prob)
 
         # Choose between custom or PyTorch LSTM cells
         self.lstms = []
@@ -77,6 +82,7 @@ class LSTMscratch(nn.Module):
         x = x.view(b_size * num_frames, n_channels, n_rows, n_cols)
         embeddings = self.encoder(x)
         embeddings = embeddings.reshape(b_size, num_frames, -1)
+        embeddings = self.input_dropout(embeddings)  # Apply dropout to embeddings
 
         # Iterate over sequence length
         lstm_out = []
@@ -84,7 +90,7 @@ class LSTMscratch(nn.Module):
             lstm_input = embeddings[:, i, :]
             for j, lstm_cell in enumerate(self.lstms):
                 h[j], c[j] = lstm_cell(lstm_input, (h[j], c[j]))
-                lstm_input = h[j]
+                lstm_input = self.recurrent_dropout(h[j])  # Apply recurrent dropout
             lstm_out.append(lstm_input)
         lstm_out = torch.stack(lstm_out, dim=1)
 

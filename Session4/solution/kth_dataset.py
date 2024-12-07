@@ -39,7 +39,7 @@ class KTH_Dataset(Dataset):
             self.class_dirs = sorted([d for d in os.listdir(root_dir) if os.path.isdir(os.path.join(root_dir, d))])
             self.class_to_idx = {cls: idx for idx, cls in enumerate(self.class_dirs)}
             self.samples = self._load_samples()
-            use_saved_samples(self.samples)
+            # use_saved_samples(self.samples)
 
     def __len__(self):
         return len(self.samples)

@@ -31,8 +31,8 @@ transforms1 = transforms.Compose([
         transforms.Resize([32, 32]),  # Normalize to [-1, 1]
     ])
 # Initialize dataset
-test_dataset = KTH_Dataset(root_dir="/home/nfs/inf6/data/datasets/kth_actions/processed", sequence_length=15,split="test", transform=transforms1,use_saved_samples=True)
-train_dataset = KTH_Dataset(root_dir="/home/nfs/inf6/data/datasets/kth_actions/processed", sequence_length=15,split="train", transform=transforms1,use_saved_samples=True)
+test_dataset = KTH_Dataset(root_dir="/home/nfs/inf6/data/datasets/kth_actions/processed", sequence_length=50,split="test", transform=transforms1,use_saved_samples=True)
+train_dataset = KTH_Dataset(root_dir="/home/nfs/inf6/data/datasets/kth_actions/processed", sequence_length=50,split="train", transform=transforms1,use_saved_samples=True)
 
 
 # In[4]:
@@ -64,8 +64,7 @@ from ConvLSTMscratch import ConvLSTM
 # In[8]:
 
 
-model = ConvLSTM(input_dim=1, hidden_dim=4, kernel_size=3, num_layers=2,batch_first=True)
-
+model = LSTMscratch(input_dim=64, hidden_dim=16, number_of_layers=2,device=device)
 
 # In[9]:
 
@@ -92,12 +91,13 @@ scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.2)
 
 classes = ["Boxing","HandClapping","HandWaving","Jogging","Running","Walking"]
 # model = SequentialClassifierWithCells(emb_dim=128, hidden_dim=128, num_layers=2, mode="zeros").to(device)
-writer = helper.new_writer("models","ConvLSTMscratch")
-train = Wrapper(model_name="ConvLSTM", model = model, device = device, criterion = criterion, optimizer = optimizer,writer=writer,show_progress_bar= True)
+writer = helper.new_writer("models","LSTMscratch")
+train = Wrapper(model_name="LSTM", model = model, device = device, criterion = criterion, optimizer = optimizer,writer=writer,show_progress_bar= True)
 train.train(10,train_loader,test_loader,classes)
 writer.close()
 train.valid_accuracy()
 train.plot_loss_acc()
+
 
 
 # In[ ]:

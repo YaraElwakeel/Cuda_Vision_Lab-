@@ -48,7 +48,7 @@ class LSTMscratch(nn.Module):
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 16, 3, 1, 1), nn.ReLU(), nn.MaxPool2d(2),
             nn.Conv2d(16, 32, 3, 1, 1), nn.ReLU(), nn.MaxPool2d(2),
-            nn.Conv2d(32, input_dim, 3, 1, 1),
+            nn.Conv2d(32, input_dim, 3, 1, 1),  nn.ReLU(),
             nn.AdaptiveAvgPool2d((1, 1))
         )
 
@@ -65,7 +65,9 @@ class LSTMscratch(nn.Module):
                 )
 
         # Fully connected classifier
-        self.classifier = nn.Linear(in_features=hidden_dim, out_features=6)
+        self.classifier = nn.Sequential(nn.Linear(in_features=hidden_dim, out_features=30),
+                                        nn.Linear(in_features=30, out_features=15),
+                                        nn.Linear(in_features=15, out_features=6))
 
     def forward(self, x):
         b_size, num_frames, n_channels, n_rows, n_cols = x.shape

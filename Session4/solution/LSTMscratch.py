@@ -29,7 +29,7 @@ class LSTMCell_scratch(nn.Module):
 
 
 class LSTMscratch(nn.Module):
-    def __init__(self, input_dim, hidden_dim, number_of_layers, device, use_custom=True):
+    def __init__(self, input_dim, hidden_dim, number_of_layers, device, use_custom=True, dropout=0.2):
         """
         Args:
             input_dim: The number of input features.
@@ -37,18 +37,20 @@ class LSTMscratch(nn.Module):
             number_of_layers: The number of stacked LSTM layers.
             device: Device (CPU/GPU) to run the model.
             use_custom: If True, use the custom LSTM cell; otherwise, use PyTorch's nn.LSTMCell.
+            dropout: Dropout probability for regularization.
         """
         super(LSTMscratch, self).__init__()
         self.mode = "zeros"
         self.num_layers = number_of_layers
         self.hidden_dim = hidden_dim
         self.use_custom = use_custom
+        self.dropout_prob = dropout
 
         # Encoder for embedding rows into vector representations
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 16, 3, 1, 1), nn.ReLU(), nn.MaxPool2d(2),
             nn.Conv2d(16, 32, 3, 1, 1), nn.ReLU(), nn.MaxPool2d(2),
-            nn.Conv2d(32, input_dim, 3, 1, 1),  nn.ReLU(),
+            nn.Conv2d(32, input_dim, 3, 1, 1), nn.ReLU(),
             nn.AdaptiveAvgPool2d((1, 1))
         )
 
@@ -64,10 +66,18 @@ class LSTMscratch(nn.Module):
                     nn.LSTMCell(input_size=input_dim if layer == 0 else hidden_dim, hidden_size=hidden_dim).to(device)
                 )
 
+        # Add dropout layers
+        self.dropout = nn.Dropout(p=dropout)
+
         # Fully connected classifier
-        self.classifier = nn.Sequential(nn.Linear(in_features=hidden_dim, out_features=30),
-                                        nn.Linear(in_features=30, out_features=15),
-                                        nn.Linear(in_features=15, out_features=6))
+        self.classifier = nn.Sequential(
+            nn.Linear(in_features=hidden_dim, out_features=128),
+            nn.ReLU(),
+            nn.Dropout(p=dropout),  # Dropout before the next linear layer
+            nn.Linear(in_features=128, out_features=64),
+            nn.ReLU(),
+            nn.Linear(in_features=64, out_features=6)
+        )
 
     def forward(self, x):
         b_size, num_frames, n_channels, n_rows, n_cols = x.shape
@@ -80,6 +90,9 @@ class LSTMscratch(nn.Module):
         embeddings = self.encoder(x)
         embeddings = embeddings.reshape(b_size, num_frames, -1)
 
+        # Apply dropout to embeddings
+        embeddings = self.dropout(embeddings)
+
         # Iterate over sequence length
         lstm_out = []
         for i in range(embeddings.shape[1]):
@@ -89,6 +102,9 @@ class LSTMscratch(nn.Module):
                 lstm_input = h[j]
             lstm_out.append(lstm_input)
         lstm_out = torch.stack(lstm_out, dim=1)
+
+        # Apply dropout to LSTM output
+        lstm_out = self.dropout(lstm_out)
 
         # Classify based on the last time step of the final layer
         y = self.classifier(lstm_out[:, -1, :])

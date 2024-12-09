@@ -28,23 +28,13 @@ class LSTMCell_scratch(nn.Module):
         return h_next, c_next
 
 
-class LSTMscratch(nn.Module):
-    def __init__(self, input_dim, hidden_dim, number_of_layers, device, use_custom=True, dropout=0.2):
-        """
-        Args:
-            input_dim: The number of input features.
-            hidden_dim: The number of hidden units.
-            number_of_layers: The number of stacked LSTM layers.
-            device: Device (CPU/GPU) to run the model.
-            use_custom: If True, use the custom LSTM cell; otherwise, use PyTorch's nn.LSTMCell.
-            dropout: Dropout probability for regularization.
-        """
-        super(LSTMscratch, self).__init__()
-        self.mode = "zeros"
+class LSTMscratch_GRU(nn.Module):
+    def __init__(self, input_dim, hidden_dim, number_of_layers, device, use_custom=True, dropout=0, GRU=False):
+        super(LSTMscratch_GRU, self).__init__()
         self.num_layers = number_of_layers
         self.hidden_dim = hidden_dim
         self.use_custom = use_custom
-        self.dropout_prob = dropout
+        self.GRU = GRU
 
         # Encoder for embedding rows into vector representations
         self.encoder = nn.Sequential(
@@ -54,10 +44,14 @@ class LSTMscratch(nn.Module):
             nn.AdaptiveAvgPool2d((1, 1))
         )
 
-        # Choose between custom or PyTorch LSTM cells
-        self.lstms = []
+        # Choose between custom or PyTorch LSTM/GRU cells
+        self.lstms = nn.ModuleList()
         for layer in range(number_of_layers):
-            if use_custom:
+            if self.GRU:
+                self.lstms.append(
+                    nn.GRUCell(input_size=input_dim if layer == 0 else hidden_dim, hidden_size=hidden_dim).to(device)
+                )
+            elif use_custom:
                 self.lstms.append(
                     LSTMCell_scratch(input_size=input_dim if layer == 0 else hidden_dim, hidden_size=hidden_dim).to(device)
                 )
@@ -66,14 +60,14 @@ class LSTMscratch(nn.Module):
                     nn.LSTMCell(input_size=input_dim if layer == 0 else hidden_dim, hidden_size=hidden_dim).to(device)
                 )
 
-        # Add dropout layers
-        self.dropout = nn.Dropout(p=dropout)
+        # Dropout layer
+        self.dropout = nn.Dropout(p=dropout) if dropout > 0 else nn.Identity()
 
         # Fully connected classifier
         self.classifier = nn.Sequential(
             nn.Linear(in_features=hidden_dim, out_features=128),
             nn.ReLU(),
-            nn.Dropout(p=dropout),  # Dropout before the next linear layer
+            nn.Dropout(p=dropout),
             nn.Linear(in_features=128, out_features=64),
             nn.ReLU(),
             nn.Linear(in_features=64, out_features=6)
@@ -90,15 +84,15 @@ class LSTMscratch(nn.Module):
         embeddings = self.encoder(x)
         embeddings = embeddings.reshape(b_size, num_frames, -1)
 
-        # Apply dropout to embeddings
-        embeddings = self.dropout(embeddings)
-
         # Iterate over sequence length
         lstm_out = []
         for i in range(embeddings.shape[1]):
             lstm_input = embeddings[:, i, :]
             for j, lstm_cell in enumerate(self.lstms):
-                h[j], c[j] = lstm_cell(lstm_input, (h[j], c[j]))
+                if self.GRU:
+                    h[j] = lstm_cell(lstm_input, h[j])
+                else:
+                    h[j], c[j] = lstm_cell(lstm_input, (h[j], c[j]))
                 lstm_input = h[j]
             lstm_out.append(lstm_input)
         lstm_out = torch.stack(lstm_out, dim=1)
@@ -111,7 +105,8 @@ class LSTMscratch(nn.Module):
         return y
 
     def init_state(self, b_size, device):
-        """ Initialize hidden and cell states """
         h = [torch.zeros(b_size, self.hidden_dim).to(device) for _ in range(self.num_layers)]
+        if self.GRU:
+            return h, None  # No cell state for GRU
         c = [torch.zeros(b_size, self.hidden_dim).to(device) for _ in range(self.num_layers)]
         return h, c

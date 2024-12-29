@@ -65,6 +65,8 @@ class Wrapper():
                 progress_bar = self.trainloader
 
             for i, (inputs, labels) in enumerate(progress_bar):
+                inputs = inputs.permute(0, 2, 1, 3, 4).to(self.device)  # (B, T, C, H, W) -> (B, C, T, H, W)
+
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 
                 # Forward pass
@@ -143,6 +145,8 @@ class Wrapper():
         self.model.eval()
         with torch.no_grad():
             for inputs, labels in self.testloader:
+                inputs = inputs.permute(0, 2, 1, 3, 4).to(self.device)  # (B, T, C, H, W) -> (B, C, T, H, W)
+
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 outputs = self.model(inputs)
 

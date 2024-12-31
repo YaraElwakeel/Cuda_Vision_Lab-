@@ -115,9 +115,9 @@ class Wrapper():
 
                 
             
-            loss_mean = np.mean(loss_list)
-            recons_loss_mean = np.mean (recons_loss)
-            vae_loss_mean = np.mean(vae_loss)
+            loss_mean = round(np.mean(loss_list),5)
+            recons_loss_mean = round(np.mean (recons_loss),5)
+            vae_loss_mean = round(np.mean(vae_loss),5)
             # acc_mean = np.mean(acc_list)
 
 
@@ -128,18 +128,21 @@ class Wrapper():
             # self.acc_hist.append(acc_mean)
 
             # print(f"Accuracy/train", acc_mean)
-            print(f"Loss/train", loss_mean)
+            print(f"Train Loss", loss_mean)
 
             # Log metrics in tensorboard
             if self.writer :
                 # self.writer.add_scalar(f"Accuracy/train", acc_mean, global_step=epoch)
                 self.writer.add_scalar(f"Loss/train", loss_mean, global_step=epoch)
+                self.writer.add_scalar(f"recon_Loss/train", recons_loss_mean, global_step=epoch)
+                self.writer.add_scalar(f"kld_Loss/train", vae_loss_mean, global_step=epoch)
 
             # Evaluate on the test data and log test metrics
             loss_test_list,recons_test_loss,kld_test_loss = self.eval()
-            loss_test_mean = np.mean(loss_test_list)
-            recons_test_loss_mean = np.mean(recons_test_loss)
-            kld_test_loss_mean = np.mean(kld_test_loss)
+
+            loss_test_mean = round(np.mean(loss_test_list),5)
+            recons_test_loss_mean = round(np.mean(recons_test_loss),5)
+            kld_test_loss_mean = round(np.mean(kld_test_loss),5)
 
             
             self.loss_test_hist.append(loss_test_mean)
@@ -148,13 +151,15 @@ class Wrapper():
             # self.acc_test_hist.append(test_accuracy)
 
             # print(f"Accuracy/test", test_accuracy)
-            print(f"Loss/test", loss_test_mean)
-            print(f"Loss/test", recons_test_loss_mean)
-            print(f"Loss/test", kld_test_loss_mean)
+            print(f"Test Loss", loss_test_mean)
+            print(f"    Test recons_Loss", recons_test_loss_mean)
+            print(f"    Test kld_Loss", kld_test_loss_mean)
             # Log metrics in tensorboard
             if self.writer :
                 # self.writer.add_scalar(f"Accuracy/test", test_accuracy, global_step=epoch)
                 self.writer.add_scalar(f"Loss/test", loss_test_mean, global_step=epoch)
+                self.writer.add_scalar(f"recons_Loss/test", recons_test_loss_mean, global_step=epoch)
+                self.writer.add_scalar(f"kld_Loss/test", kld_test_loss_mean, global_step=epoch)
 
             # Store predictions and true labels for confusion matrix
             # self.predictions.extend(epoch_predictions)
@@ -221,15 +226,9 @@ class Wrapper():
         accuracy = accuracy_score(self.true_labels, self.predictions) * 100
         print(f"Validation accuracy: {round(accuracy, 2)}%")
 
-
-    def concatenate_matrices(self,loss, acc, loss_test, acc_test ):
-        self.loss_hist.extend(loss) 
-        self.loss_test_hist.extend( loss_test)
-        self.acc_hist.extend(acc) 
-        self.acc_test_hist.extend(acc_test) 
-
     def plot_loss_acc(self,line=None):
         # Create subplots for loss and accuracy
+        plt.style.use('seaborn')
         fig, ax = plt.subplots(1, 2)
         fig.set_size_inches(16, 5)
 
@@ -244,16 +243,18 @@ class Wrapper():
 
 
 
-        # Plot training and testing accuracy
-        ax[1].plot(self.acc_hist, label="Train Accuracy", color="blue", linewidth=3)
-        ax[1].plot(self.acc_test_hist, color="red", label="Test Accuracy", linewidth=3)
+        # Plot Independent Loss Curves
+        ax[1].plot(self.loss_test_hist,label = "Test Loss Totall")
+        ax[1].plot(self.loss_test_recons_hist, label="recons. Loss")
+        ax[1].plot(self.loss_test_kld_hist, label="KLD Loss")
         ax[1].set_xlabel("Epochs")
-        ax[1].set_ylabel("Accuracy")
+        ax[1].set_ylabel("loss")
+        ax[1].set_yscale("log")
         ax[1].legend(loc="best")
-        if line: 
-            ax[1].axvline(x=line, color="red", ls="--", linewidth=3)
+        # if line: 
+        #     ax[1].axvline(x=line, color="red", ls="--", linewidth=3)
         
-        plt.savefig("accuracy_plot.png")
+        # plt.savefig("plots.png")
         plt.show()
 
     

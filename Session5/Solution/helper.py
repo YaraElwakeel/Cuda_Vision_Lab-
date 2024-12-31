@@ -3,8 +3,8 @@ from torch.utils.tensorboard import SummaryWriter
 import shutil
 import numpy as np 
 import torch
-import matplotlib.pyplot as plt
-from Model_Wrapper import Wrapper
+import torch.nn.functional as F
+
 
 
 def new_writer(file,model):
@@ -26,4 +26,14 @@ def set_random_seed(random_seed=None):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     print(f"Random seed set to: {random_seed}")
+
+def vae_loss_function(recons, target, mu, log_var, lambda_kld=1e-3):
+    # """
+    #     Combined loss function for joint optimization of 
+    #     reconstruction and ELBO
+    #     """
+        recons_loss = F.mse_loss(recons, target)
+        kld = (-0.5 * (1 + log_var - mu**2 - log_var.exp()).sum(dim=1)).mean(dim=0)  # closed-form solution of KLD in Gaussian
+        loss = recons_loss + lambda_kld * kld
+        return loss, (recons_loss, kld)
 

@@ -79,7 +79,7 @@ class VanillaVAE(nn.Module):
         return x_hat, (z, mu, log_var)
     
 class ConvVAE(nn.Module):
-    def __init__(self, in_channels=1, latent_dim=10):
+    def __init__(self, in_channels=1, latent_dim=64):
         super(ConvVAE, self).__init__()
         
         self.latent_dim = latent_dim
@@ -100,6 +100,7 @@ class ConvVAE(nn.Module):
         self.fc_log_var = nn.Linear(256 * 4 * 4, latent_dim)
 
         # Fully Connected Layer for Latent to Decoder Input
+        #  reconstructs the spatial structure for the decoder
         self.fc_decode = nn.Linear(latent_dim, 256 * 4 * 4)
 
         # Decoder: Transposed Convolutional Layers
@@ -116,8 +117,9 @@ class ConvVAE(nn.Module):
 
     def decode(self, z):
         """Decode from latent space."""
+         # Reshape to match decoder input
         batch_size = z.size(0)
-        dec_input = self.fc_decode(z).view(batch_size, 256, 4, 4)  # Reshape to match decoder input
+        dec_input = self.fc_decode(z).view(batch_size, 256, 4, 4) 
         return self.decoder_net(dec_input)
 
     def reparameterize(self, mu, log_var):

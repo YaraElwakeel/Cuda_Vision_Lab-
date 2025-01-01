@@ -6,6 +6,8 @@ from tqdm import tqdm
 from sklearn.metrics import confusion_matrix
 import matplotlib.pyplot as plt
 from torcheval.metrics import FrechetInceptionDistance
+from torchvision.utils import save_image,make_grid 
+
 
 class Wrapper():
     def __init__(self, model_name,model, device, criterion, optimizer, writer=None, scheduler=None, warmup_lr=None, show_progress_bar=True):
@@ -41,6 +43,8 @@ class Wrapper():
 
         # Flag for showing progress bar
         self.show_progress_bar = show_progress_bar
+
+        self.img_save_path = 'img'
 
         # definr the french inception distance 
         self.fid = FrechetInceptionDistance(device=device) 
@@ -115,7 +119,7 @@ class Wrapper():
                 self.writer.add_scalar(f"kld_Loss/train", vae_loss_mean, global_step=epoch)
 
             # Evaluate on the test data and log test metrics
-            loss_test_list,recons_test_loss,kld_test_loss = self.eval()
+            loss_test_list,recons_test_loss,kld_test_loss = self.eval(epoch)
             # Compute FID after processing all batches
             fid_score = self.fid.compute()
             self.fid.reset()  # Reset FID state after computation
@@ -140,12 +144,13 @@ class Wrapper():
                 self.writer.add_scalar(f"Loss/test", loss_test_mean, global_step=epoch)
                 self.writer.add_scalar(f"recons_Loss/test", recons_test_loss_mean, global_step=epoch)
                 self.writer.add_scalar(f"kld_Loss/test", kld_test_loss_mean, global_step=epoch)
-                self.writer.add_scalar(f"fid_score",fid_score,global_step=epoch)
+                self.writer.add_scalar(f"fid_score", fid_score, global_step=epoch)
+
 
             # self.save_model(self.model, self.optimizer, epoch, {"test_loss":loss_test_mean, "train_loss": loss_mean})
 
 
-    def eval(self):
+    def eval(self,epoch):
 
         loss_list = []
         recons_loss = []
@@ -157,7 +162,7 @@ class Wrapper():
         # Switch to evaluation mode
         self.model.eval()
         with torch.no_grad():
-            for inputs, labels in self.testloader:
+            for i,(inputs, labels) in enumerate(self.testloader):
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 # Compute loss for this batch
                 recons, (z, mu, log_var) = self.model(inputs)
@@ -173,6 +178,17 @@ class Wrapper():
                 loss_list.append(loss.item())
                 recons_loss.append(mse.item())
                 kld_loss.append(kld.item())
+
+                if i==0:
+                    if not os.path.exists(self.img_save_path):
+                        os.makedirs(self.img_save_path)
+                    save_image( inputs[:64].cpu(), os.path.join(self.img_save_path, f"{self.model_name}input_{epoch}.png") )
+                    save_image( recons[:64].cpu(), os.path.join(self.img_save_path, f"{self.model_name}recons{epoch}.png") )
+                    if self.writer is not None:
+                        grid = make_grid(inputs[:64].cpu())
+                        self.writer.add_image(f'images', grid, epoch)
+                        grid = make_grid(recons[:64].cpu())
+                        self.writer.add_image('output_images', grid, epoch)
 
         return loss_list, recons_loss, kld_loss
     

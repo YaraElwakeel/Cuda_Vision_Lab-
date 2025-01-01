@@ -79,7 +79,7 @@ class VanillaVAE(nn.Module):
         return x_hat, (z, mu, log_var)
     
 class ConvVAE(nn.Module):
-    def __init__(self, in_channels=1, latent_dim=64):
+    def __init__(self, in_channels=1, latent_dim=10):
         super(ConvVAE, self).__init__()
         
         self.latent_dim = latent_dim

@@ -10,7 +10,7 @@ from torchvision.utils import save_image,make_grid
 
 
 class Wrapper():
-    def __init__(self, model_name,model, device, criterion, optimizer, writer=None, scheduler=None, warmup_lr=None, show_progress_bar=True):
+    def __init__(self, model_name,model, device, criterion, optimizer, writer=None, scheduler=None, warmup_lr=None, show_progress_bar=True,print_epoch_values=True,lambda_kld=1e-3,condition = False ):
         # Track training and testing loss for each epoch
         self.loss_hist = [] 
         self.loss_kld_hist = []
@@ -33,6 +33,7 @@ class Wrapper():
 
         # Define model parameters
         self.criterion = criterion
+        self.lambda_kld = lambda_kld
         self.optimizer = optimizer
         self.model = model
         self.device = device
@@ -43,11 +44,14 @@ class Wrapper():
 
         # Flag for showing progress bar
         self.show_progress_bar = show_progress_bar
+        self.print_epoch_values= print_epoch_values
 
         self.img_save_path = 'img'
 
         # definr the french inception distance 
         self.fid = FrechetInceptionDistance(device=device) 
+        
+        self.condition = condition
    
     def train(self, num_epochs, trainloader, testloader):
         # Set classes and loaders
@@ -72,12 +76,17 @@ class Wrapper():
 
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
                 
+                one_hot_labels = torch.nn.functional.one_hot(labels, num_classes=3).float().to(self.device)
+
                 # Forward pass
                 self.optimizer.zero_grad()
-                recons, (z, mu, log_var) = self.model(inputs)
+                if self.condition:
+                    recons, (z, mu, log_var) = self.model(inputs,one_hot_labels)
+                else:
+                    recons, (z, mu, log_var) = self.model(inputs)
 
                 # Calculate Loss
-                loss, (mse, kld) = self.criterion(recons, inputs, mu, log_var)
+                loss, (mse, kld) = self.criterion(recons, inputs, mu, log_var,self.lambda_kld)
                 
                 loss_list.append(loss.item())
                 recons_loss.append(mse.item())
@@ -110,7 +119,6 @@ class Wrapper():
             self.loss_kld_hist.append(vae_loss_mean)
             self.loss_recons_hist.append(recons_loss_mean)
 
-            print(f"Train Loss", loss_mean)
 
             # Log metrics in tensorboard
             if self.writer :
@@ -135,10 +143,11 @@ class Wrapper():
             self.loss_test_hist.append(loss_test_mean)
             self.loss_test_recons_hist.append(recons_test_loss_mean)
             self.loss_test_kld_hist.append(kld_test_loss_mean)
-
-            print(f"Test Loss", loss_test_mean)
-            print(f"    Test recons_Loss", recons_test_loss_mean)
-            print(f"    Test kld_Loss", kld_test_loss_mean)
+            if self.print_epoch_values:
+                print(f"Train Loss", loss_mean)
+                print(f"Test Loss", loss_test_mean)
+                print(f"    Test recons_Loss", recons_test_loss_mean)
+                print(f"    Test kld_Loss", kld_test_loss_mean)
             # Log metrics in tensorboard
             if self.writer :
                 self.writer.add_scalar(f"Loss/test", loss_test_mean, global_step=epoch)
@@ -164,9 +173,15 @@ class Wrapper():
         with torch.no_grad():
             for i,(inputs, labels) in enumerate(self.testloader):
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
+                one_hot_labels = torch.nn.functional.one_hot(labels, num_classes=3).float().to(self.device)
+
+                
                 # Compute loss for this batch
-                recons, (z, mu, log_var) = self.model(inputs)
-                loss, (mse, kld) = self.criterion(recons, inputs, mu, log_var)
+                if self.condition:
+                    recons, (z, mu, log_var) = self.model(inputs, one_hot_labels)
+                else:
+                    recons, (z, mu, log_var) = self.model(inputs)
+                loss, (mse, kld) = self.criterion(recons, inputs, mu, log_var,self.lambda_kld)
 
                 # Convert grayscale to RGB 
                 rgb_inputs = inputs.repeat(1, 3, 1, 1)  # [batch_size, 1, H, W] -> [batch_size, 3, H, W]

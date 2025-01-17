@@ -41,8 +41,8 @@ test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False,num_workers=
 print("test_dataset per epoch",next(iter(test_loader))[0].size())
 
 
-generator = Generator(latent_dim=128, num_channels=1, base_channels=32)
-discriminator = Discriminator(in_channels=1, out_dim=1, base_channels=32)
+generator = Generator(latent_dim=128, num_channels=3, base_channels=32)
+discriminator = Discriminator(in_channels=3, out_dim=1, base_channels=32)
 trainer = Trainer(generator=generator, discriminator=discriminator, latent_dim=128, writer=writer)
 
 

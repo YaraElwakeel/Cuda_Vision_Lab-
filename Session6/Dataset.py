@@ -44,7 +44,7 @@ class Dataset(Dataset):
 
         # Load image and label
         img_path = self.image_paths[idx]
-        image = Image.open(img_path).convert("L")  # Ensure 3-channel RGB
+        image = Image.open(img_path).convert("RGB")  # Ensure 3-channel RGB
         label = self.labels[idx]
 
         # Apply transformations

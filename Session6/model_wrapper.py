@@ -10,14 +10,12 @@ import torch.nn.functional as F
 import torchvision
 from torchvision import datasets, models, transforms
 from torchvision.utils import save_image
+from torcheval.metrics import FrechetInceptionDistance
 # from torch.utils.tensorboard import SummaryWriter
 
 
 
 class Trainer:
-    """
-    Class for initializing GAN and training it
-    """
     def __init__(self, generator, discriminator, latent_dim=128, writer=None):
         """ Initialzer """
         assert writer is not None, f"Tensorboard writer not set..."
@@ -31,6 +29,7 @@ class Trainer:
         self.optim_discriminator = torch.optim.Adam(self.discriminator.parameters(), lr=3e-4, betas=(0.5, 0.9))
         self.optim_generator = torch.optim.Adam(self.generator.parameters(), lr=3e-4, betas=(0.5, 0.9))
         
+        self.fid = FrechetInceptionDistance(device=self.device) 
         # REAL LABEL = 1
         # FAKE LABEL = 0
         # eps = 1e-10
@@ -48,6 +47,8 @@ class Trainer:
             "d_fake": [],
             "g": []
         }
+        self.fid_score_hist = []
+
         return
         
     def train_one_step(self, imgs):
@@ -105,13 +106,15 @@ class Trainer:
     def train(self, data_loader, N_iters=50, init_step=0):
         """ Training the models for several iterations """
         
-        progress_bar = tqdm(total=N_iters, initial=init_step)
+        
         running_d_loss = 0
         running_g_loss = 0
         
         iter_ = 0
         for i in range(N_iters):
-            for real_batch, _ in data_loader:           
+
+            progress_bar = tqdm(data_loader, total=len(data_loader))
+            for j, (real_batch, labels) in enumerate(progress_bar):           
                 real_batch = real_batch.to(self.device)
                 d_loss_real, d_loss_fake, g_loss = self.train_one_step(imgs=real_batch)
                 d_loss = d_loss_real + d_loss_fake
@@ -129,14 +132,27 @@ class Trainer:
                 self.writer.add_scalars(f'Comb_Loss/Losses', {
                             'Discriminator': d_loss.item(),
                             'Generator':  g_loss.item()
-                        }, iter_)    
-                if(iter_ % 200 == 0):
+                        }, iter_)   
+                 
+                if(iter_ % 200 == 0):            
                     imgs = self.generate()
                     grid = torchvision.utils.make_grid(imgs, nrow=8)
                     self.writer.add_image('images', grid, global_step=iter_)
                     torchvision.utils.save_image(grid, os.path.join(os.getcwd(), "imgs", "training", f"imgs_{iter_}.png"))
 
                 iter_ = iter_ + 1 
+
+                # self.fid.update(real_batch, is_real=True)
+                # self.fid.update(imgs, is_real=False)
+                # fid_score = self.fid.compute()
+                # self.writer.add_scalar(f'FID score', fid_score, global_step=i)
+                # self.fid_score_hist.append(fid_score.cpu())
+                # self.fid.reset()
+                
+                
+            # print("Fid score", self.fid)
             
-            progress_bar.update(1)
+            
+            
+            
         return

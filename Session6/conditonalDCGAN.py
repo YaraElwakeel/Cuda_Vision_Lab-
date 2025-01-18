@@ -90,7 +90,7 @@ class Reshape(nn.Module):
 
 
 
-class Generator(nn.Module):
+class ConditionalGenerator(nn.Module):
     """
     A fully convolutional generator using ReLU activations. 
     Takes as input a latent vector and a class label, and outputs a fake sample.
@@ -147,7 +147,7 @@ class Generator(nn.Module):
 
 
 
-class Discriminator(nn.Module):
+class ConditionalDiscriminator(nn.Module):
     """ A fully convolutional discriminator using LeakyReLU activations. 
     Takes as input either a real or fake sample and predicts its authenticity and class.
        (B, num_channels + num_classes, 32, 32)  -->  (B, 1, 1, 1)

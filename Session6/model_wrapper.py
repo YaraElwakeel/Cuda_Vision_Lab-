@@ -16,7 +16,7 @@ from torcheval.metrics import FrechetInceptionDistance
 
 
 class Trainer:
-    def __init__(self, generator, discriminator, latent_dim=128, writer=None):
+    def __init__(self, generator, discriminator, latent_dim=128, conditional_gan=False,writer=None):
         """ Initialzer """
         assert writer is not None, f"Tensorboard writer not set..."
     
@@ -25,6 +25,7 @@ class Trainer:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.generator = generator.to(self.device)
         self.discriminator = discriminator.to(self.device)
+        self.conditional_gan = conditional_gan
         
         self.optim_discriminator = torch.optim.Adam(self.discriminator.parameters(), lr=3e-4, betas=(0.5, 0.9))
         self.optim_generator = torch.optim.Adam(self.generator.parameters(), lr=3e-4, betas=(0.5, 0.9))
@@ -94,12 +95,54 @@ class Trainer:
         
         return d_loss_real, d_loss_fake, g_loss
     
+    def train_one_step_conditional(self, imgs, labels):
+        criterion = torch.nn.BCELoss()
+        batch_size = imgs.size(0)
+        real_images, labels = imgs.to("cuda:0"), labels.to("cuda:0")
+        
+        # Create labels for real and fake images
+        real_labels = torch.ones(batch_size, 1, 1, 1).to("cuda:0")
+        fake_labels = torch.zeros(batch_size, 1, 1, 1).to("cuda:0")
+        
+        # Train Discriminator
+        self.optim_discriminator.zero_grad()
+        
+        # Real images
+        real_outputs = self.discriminator(real_images, labels)
+        d_loss_real = criterion(real_outputs, real_labels)
+        
+        
+        # Fake images
+        z = torch.randn(batch_size, self.latent_dim, 1, 1).to("cuda:0")
+        fake_images = self.generator(z, labels)
+        fake_outputs = self.discriminator(fake_images.detach(), labels)
+        d_loss_fake = criterion(fake_outputs, fake_labels)
+
+        (d_loss_real + d_loss_fake).backward()
+        self.optim_discriminator.step()
+        
+        # Train Generator
+        self.optim_generator.zero_grad()
+        
+        fake_outputs = self.discriminator(fake_images, labels)
+        g_loss = criterion(fake_outputs, real_labels)
+        g_loss.backward()
+        self.optim_generator.step()
+
+        return d_loss_real, d_loss_fake, g_loss
+
+
+
+
     @torch.no_grad()
-    def generate(self, N=64):
+    def generate(self, labels=None,N=64):
         """ Generating a bunch of images using current state of generator """
         self.generator.eval()
         latent = torch.randn(N, self.latent_dim, 1, 1).to(self.device)
-        imgs = self.generator(latent)
+        if(self.conditional_gan):
+            imgs = self.generator(latent, labels=labels)
+        else:
+            imgs = self.generator(latent)
         imgs = imgs * 0.5 + 0.5
         return imgs
         
@@ -116,7 +159,12 @@ class Trainer:
             progress_bar = tqdm(data_loader, total=len(data_loader))
             for j, (real_batch, labels) in enumerate(progress_bar):           
                 real_batch = real_batch.to(self.device)
-                d_loss_real, d_loss_fake, g_loss = self.train_one_step(imgs=real_batch)
+                labels = labels.to(self.device)
+                if(self.conditional_gan):
+                    d_loss_real, d_loss_fake, g_loss = self.train_one_step_conditional(imgs=real_batch, labels=labels)    
+                else:
+                    d_loss_real, d_loss_fake, g_loss = self.train_one_step(imgs=real_batch)
+                
                 d_loss = d_loss_real + d_loss_fake
             
                 # updating progress bar
@@ -134,23 +182,29 @@ class Trainer:
                             'Generator':  g_loss.item()
                         }, iter_)   
                  
-                if(iter_ % 200 == 0):            
-                    imgs = self.generate()
-                    grid = torchvision.utils.make_grid(imgs, nrow=8)
-                    self.writer.add_image('images', grid, global_step=iter_)
-                    torchvision.utils.save_image(grid, os.path.join(os.getcwd(), "imgs", "training", f"imgs_{iter_}.png"))
+                if(iter_ % 200 == 0):
+                    if(self.conditional_gan):            
+                        imgs = self.generate(labels=labels)
+                        grid = torchvision.utils.make_grid(imgs, nrow=8)
+                        self.writer.add_image('images', grid, global_step=iter_)
+                        torchvision.utils.save_image(grid, os.path.join(os.getcwd(), "imgs", "training", f"conditional_imgs_{iter_}.png"))
+                    else:
+                        imgs = self.generate()  
+                        grid = torchvision.utils.make_grid(imgs, nrow=8)
+                        self.writer.add_image('images', grid, global_step=iter_)
+                        torchvision.utils.save_image(grid, os.path.join(os.getcwd(), "imgs", "training", f"imgs_{iter_}.png"))
 
                 iter_ = iter_ + 1 
 
-                # self.fid.update(real_batch, is_real=True)
-                # self.fid.update(imgs, is_real=False)
-                # fid_score = self.fid.compute()
-                # self.writer.add_scalar(f'FID score', fid_score, global_step=i)
-                # self.fid_score_hist.append(fid_score.cpu())
-                # self.fid.reset()
+                self.fid.update(real_batch, is_real=True)
+                self.fid.update(imgs, is_real=False)
+                fid_score = self.fid.compute()
+                self.writer.add_scalar(f'FID score', fid_score, global_step=i)
+                self.fid_score_hist.append(fid_score.cpu())
+                self.fid.reset()
                 
                 
-            # print("Fid score", self.fid)
+            print("Fid score", self.fid)
             
             
             

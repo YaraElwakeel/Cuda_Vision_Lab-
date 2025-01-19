@@ -3,7 +3,7 @@ import shutil
 from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
-
+import seaborn as sn
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -46,7 +46,7 @@ class Trainer:
         self.hist = {
             "d_real": [],
             "d_fake": [],
-            "g": []
+            "g_loss": []
         }
         self.fid_score_hist = []
 
@@ -146,7 +146,7 @@ class Trainer:
         imgs = imgs * 0.5 + 0.5
         return imgs
         
-    def train(self, data_loader, N_iters=50, init_step=0):
+    def train(self, data_loader, epochs=50, init_step=0):
         """ Training the models for several iterations """
         
         
@@ -154,7 +154,7 @@ class Trainer:
         running_g_loss = 0
         
         iter_ = 0
-        for i in range(N_iters):
+        for i in range(epochs):
 
             progress_bar = tqdm(data_loader, total=len(data_loader))
             for j, (real_batch, labels) in enumerate(progress_bar):           
@@ -165,6 +165,8 @@ class Trainer:
                 else:
                     d_loss_real, d_loss_fake, g_loss = self.train_one_step(imgs=real_batch)
                 
+                
+
                 d_loss = d_loss_real + d_loss_fake
             
                 # updating progress bar
@@ -188,25 +190,61 @@ class Trainer:
                         grid = torchvision.utils.make_grid(imgs, nrow=8)
                         self.writer.add_image('images', grid, global_step=iter_)
                         torchvision.utils.save_image(grid, os.path.join(os.getcwd(), "imgs", "training", f"conditional_imgs_{iter_}.png"))
+                        if(iter_==11400):
+                            print(labels)
                     else:
                         imgs = self.generate()  
                         grid = torchvision.utils.make_grid(imgs, nrow=8)
                         self.writer.add_image('images', grid, global_step=iter_)
                         torchvision.utils.save_image(grid, os.path.join(os.getcwd(), "imgs", "training", f"imgs_{iter_}.png"))
+                iter_ = iter_ + 1
 
-                iter_ = iter_ + 1 
+                
 
-                self.fid.update(real_batch, is_real=True)
-                self.fid.update(imgs, is_real=False)
-                fid_score = self.fid.compute()
-                self.writer.add_scalar(f'FID score', fid_score, global_step=i)
-                self.fid_score_hist.append(fid_score.cpu())
-                self.fid.reset()
+            self.fid.update(real_batch, is_real=True)
+            self.fid.update(imgs, is_real=False)
+            fid_score = self.fid.compute()
+            self.writer.add_scalar(f'FID score', fid_score, global_step=i)
+            self.fid_score_hist.append(fid_score.cpu())
+            self.fid.reset()
+            self.hist["d_real"].append(d_loss_real.item())
+            self.hist["d_fake"].append(d_loss_fake.item())
+            self.hist["g_loss"].append(g_loss.item())
                 
-                
-            print("Fid score", self.fid)
-            
-            
-            
-            
+        self.plot_loss_acc()    
+            # print("Fid score", self.fid)
         return
+    
+
+    def plot_loss_acc(self,line=None):
+        # Create subplots for loss and accuracy
+        # plt.style.use('seaborn')
+        fig, ax = plt.subplots(2, 2)
+        fig.set_size_inches(16, 10)
+
+        # Plot training and testing loss
+        ax[0][0].plot(self.hist["d_fake"], label="Discriminator Fake Loss", color="blue", linewidth=3)
+        ax[0][0].set_xlabel("Epochs")
+        ax[0][0].set_ylabel("Loss")
+        ax[0][0].legend(loc="best")
+
+        # Plot Independent Loss Curves
+        ax[0][1].plot(self.hist["d_real"], label= "Discriminator Real Loss")
+        ax[0][1].set_xlabel("Epochs")
+        ax[0][1].set_ylabel("loss")
+        ax[0][1].legend(loc="best")
+ 
+        ax[1][0].plot(self.hist["g_loss"], label = "Generator Loss")
+        ax[1][0].set_xlabel("Epochs")
+        ax[1][0].set_ylabel("score")
+        ax[1][0].legend(loc="best")
+
+        ax[1][1].plot(self.fid_score_hist, label = "FID score")
+        ax[1][1].set_xlabel("Epochs")
+        ax[1][1].set_ylabel("score")
+        ax[1][1].legend(loc="best")
+
+
+        plt.savefig("accuracy_plots.png")
+        plt.show()
+

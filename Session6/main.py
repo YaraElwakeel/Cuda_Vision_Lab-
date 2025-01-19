@@ -1,4 +1,5 @@
 from Dataset import Dataset
+# from DCGAN import Generator, Discriminator
 from DCGAN import Generator, Discriminator
 from model_wrapper import Trainer
 from torch.utils.data import DataLoader

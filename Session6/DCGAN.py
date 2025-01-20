@@ -90,11 +90,6 @@ class Reshape(nn.Module):
 
 
 class Generator(nn.Module):
-    """
-    A fully convolutional generator using ReLU activations. 
-    Takes as input a latent vector and outputs a fake sample.
-       (B, latent_dim, 1, 1)  --> (B, num_channels, 32, 32)
-    """
     def __init__(self, latent_dim=128, num_channels=1, base_channels=32):
         """ Model initializer """
         super().__init__()
@@ -133,10 +128,6 @@ class Generator(nn.Module):
 
 
 class Discriminator(nn.Module):
-    """ A fully convolutional discriminator using LeakyReLU activations. 
-    Takes as input either a real or fake sample and predicts its autenticity.
-       (B, num_channels, 32, 32)  -->  (B, 1, 1, 1)
-    """
     def __init__(self, in_channels=1, out_dim=1, base_channels=32, dropout=0.3):
         """ Module initializer """
         super().__init__()  

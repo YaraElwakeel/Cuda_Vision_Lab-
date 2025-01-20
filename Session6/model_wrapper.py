@@ -16,7 +16,7 @@ from torcheval.metrics import FrechetInceptionDistance
 
 
 class Trainer:
-    def __init__(self, generator, discriminator, latent_dim=128, conditional_gan=False,writer=None):
+    def __init__(self, generator, discriminator, optimizer_g, optimizer_d, latent_dim=128, conditional_gan=False,writer=None):
         """ Initialzer """
         assert writer is not None, f"Tensorboard writer not set..."
     
@@ -27,8 +27,8 @@ class Trainer:
         self.discriminator = discriminator.to(self.device)
         self.conditional_gan = conditional_gan
         
-        self.optim_discriminator = torch.optim.Adam(self.discriminator.parameters(), lr=3e-4, betas=(0.5, 0.9))
-        self.optim_generator = torch.optim.Adam(self.generator.parameters(), lr=3e-4, betas=(0.5, 0.9))
+        self.optim_discriminator = optimizer_d
+        self.optim_generator = optimizer_g
         
         self.fid = FrechetInceptionDistance(device=self.device) 
         # REAL LABEL = 1
@@ -96,13 +96,17 @@ class Trainer:
         return d_loss_real, d_loss_fake, g_loss
     
     def train_one_step_conditional(self, imgs, labels):
+
+        self.generator.train()
+        self.discriminator.train()
+
         criterion = torch.nn.BCELoss()
         batch_size = imgs.size(0)
-        real_images, labels = imgs.to("cuda:0"), labels.to("cuda:0")
+        real_images, labels = imgs.to(self.device), labels.to(self.device)
         
         # Create labels for real and fake images
-        real_labels = torch.ones(batch_size, 1, 1, 1).to("cuda:0")
-        fake_labels = torch.zeros(batch_size, 1, 1, 1).to("cuda:0")
+        real_labels = torch.ones(batch_size, 1, 1, 1).to(self.device)
+        fake_labels = torch.zeros(batch_size, 1, 1, 1).to(self.device)
         
         # Train Discriminator
         self.optim_discriminator.zero_grad()
@@ -113,7 +117,7 @@ class Trainer:
         
         
         # Fake images
-        z = torch.randn(batch_size, self.latent_dim, 1, 1).to("cuda:0")
+        z = torch.randn(batch_size, self.latent_dim, 1, 1).to(self.device)
         fake_images = self.generator(z, labels)
         fake_outputs = self.discriminator(fake_images.detach(), labels)
         d_loss_fake = criterion(fake_outputs, fake_labels)

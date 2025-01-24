@@ -5,7 +5,8 @@ import numpy as np
 import os 
 from PIL import Image
 import pandas as pd
-
+import random
+import helper
 
 class LFWtripletDataset(Dataset):
     
@@ -13,81 +14,90 @@ class LFWtripletDataset(Dataset):
         """
         Args:
             root_dir (str): Directory containing dataset.
-            split(str) :{train, val} 
+            split(str){train, test}  : data split type 
             transform (callable, optional): Transformation to apply to the images.
             
         """
         self.transform = transform
         self.root_dir = root_dir
-
-        self.image_paths = []
-        self.labels = []
-
-        csv_file_name = "pairs.csv"  
-
-        # Construct the full path for the file
-        csv_file_path = os.path.join(self.root_dir, csv_file_name)
-        df = pd.read_csv(csv_file_path)
-        df = self.modify_CSV(df)
-        print(df)
+        self.split = split
         
-        for index, row in df.iterrows():
-            image_dir_0 = os.path.join(root_dir, row.iloc[0] , row.iloc[1])
-            image_dir_1 = os.path.join(row.iloc[2] , row.iloc[3])
-            
-            image_0 = Image.open(image_dir_0).convert("L")
-            image_1 = Image.open(image_dir_1).convert("L")
-            
-            
-            
+        self.people_df  = None
+        self.people_sev_img = None
+        self.people_one_img = None
         
-        
-        
-    def modify_CSV(self,df):
-        # Check for NaN in "imagenum2"
-        mask = df.iloc[:, 3].isna()
 
-        # Apply the modifications:
-        df.loc[mask, df.columns[3]] = df.loc[mask, df.columns[2]]  # Shift "imagenum2" to "Unnamed: 3"
-        df.loc[mask, df.columns[2]] = df.loc[mask, df.columns[0]]  # Copy "name" to "imagenum2"
+        self.triplets = []
+        self.triplets_labels = []
 
-        # Now, add leading zeros to the third column (imagenum2)
+        self.splits = {None:"people.csv","train":"peopleDevTrain.csv","test":"peopleDevTest.csv"}
+        self.read_data()
+
+    def statistics(self):
+        helper.db_statistics(self.people_df)
+        
+    def read_data(self):
+        
+        csv_file_path = os.path.join(self.root_dir, self.splits[self.split])
+        self.people_df = pd.read_csv(csv_file_path)  
+
+        if self.split != None:
+            # Create a new DataFrame excluding rows with the only one picture
+            self.people_sev_img = self.people_df[self.people_df['images'] != 1]
+            self.expand_CSV()
+            self.people_sev_img= self.add_subdir_images(self.people_sev_img)
+            
+
+            # Create another DataFrame containing only the excluded rows
+            self.people_one_img = self.people_df[self.people_df['images'] == 1]
+            self.people_one_img= self.add_subdir_images(self.people_one_img)
+        
+    def expand_CSV(self):
+        
+        self.people_sev_img = self.people_sev_img.loc[self.people_sev_img.index.repeat(self.people_sev_img['images'])].copy()
+        self.people_sev_img['images'] = self.people_sev_img.groupby('name').cumcount() + 1
+
+
+    def add_subdir_images(self,df):
+        
+        # Now, add leading zeros to images number
         df.iloc[:, 1] = df.iloc[:, 1].apply(lambda x: f"{int(x):04d}" )
-        df.iloc[:, 3] = df.iloc[:, 3].apply(lambda x: f"{int(x):04d}" )
         
+        # add the name to the image number 
         df.iloc[:,1] = df.iloc[:, 0].astype(str) + "_" + df.iloc[:, 1].astype(str) + ".jpg"
-        df.iloc[:,3] = df.iloc[:, 2].astype(str) + "_" + df.iloc[:, 3].astype(str) + ".jpg"
-        return df 
-
-
-        # # Open and process the file
-        # with open(csv_file_path, "r") as f:
-        #     for line in f:
-        #         print(line.strip())  # Incremental processing here
         
-        # for subdir in os.listdir(root_dir):
-        #     print(subdir)
-        #     if subdir == "pairs.csv":
+        return df
+
                 
-    # def __len__(self):
-    #     return len(self.images)
+    def __len__(self):
+        return len(self.people_sev_img)
 
-    # def __getitem__(self, idx):
-    #     image1 = self.images[idx, 0]  # First image in pair
-    #     image2 = self.images[idx, 1]  # Second image in pair
-    #     label = self.labels[idx]  # 1 if same person, 0 otherwise
+    def __getitem__(self, idx):
+        
+        image_dir = os.path.join(self.root_dir,'lfw-deepfunneled', 'lfw-deepfunneled')        
+        anchor_dir = os.path.join(image_dir, self.people_sev_img.iloc[idx,0] ,  self.people_sev_img.iloc[idx,1])
+        anchor_img = Image.open(anchor_dir)
+        anchor_name = self.people_sev_img.iloc[idx,0]
+        
+        
+        # sample from all the possible positive samples 
+        selected_name = self.people_sev_img.iloc[idx, 0]
+        possible_pos = self.people_sev_img[self.people_sev_img['name'] == selected_name].reset_index(drop=True)
+        pos_sample = possible_pos.sample(n=1)
+        pos_name = pos_sample.iloc[0]["name"]
+        pos_dir = os.path.join(image_dir,pos_name,   pos_sample.iloc[0]["images"])
+        pos_img = Image.open(pos_dir)     
 
-    #     # Convert grayscale (H, W) to (C, H, W)
-    #     image1 = np.expand_dims(image1, axis=0)
-    #     image2 = np.expand_dims(image2, axis=0)
+        # sample from all the possible positive samples 
+        neg_sample = self.people_one_img.sample(n=1)
+        neg_name = neg_sample.iloc[0]["name"]
+        neg_dir = os.path.join(image_dir, neg_name , neg_sample.iloc[0]["images"])
+        neg_img = Image.open(neg_dir)
+            
+        # Apply transformations (like resizing, normalizing)
+        if self.transform:
+            anchor = self.transform(anchor_img)
+            positive = self.transform(pos_img)
+            negative = self.transform(neg_img)
 
-    #     # Convert images to PIL for transformation
-    #     image1 = Image.fromarray(image1[0])  # Convert to PIL Image
-    #     image2 = Image.fromarray(image2[0])  # Convert to PIL Image
-
-    #     # Apply transformations (like resizing, normalizing)
-    #     if self.transform:
-    #         image1 = self.transform(image1)
-    #         image2 = self.transform(image2)
-
-    #     return image1, image2, torch.tensor(label, dtype=torch.float32)
+        return (anchor, positive,negative),(anchor_name,pos_name,neg_name) 

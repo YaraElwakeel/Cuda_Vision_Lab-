@@ -1,15 +1,15 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+import torch 
+import numpy as np 
+import os 
 
 def db_statistics(df):
     # ----------- Summary Statistics -----------
     total_people = len(df)
     total_images = df['images'].sum()
-    avg_images_per_person = df['images'].mean()
-    median_images_per_person = df['images'].median()
     max_images = df['images'].max()
-    min_images = df['images'].min()
     single_count = (df['images'] == 1).sum()
     multi_count = (df['images'] > 1).sum()
 
@@ -38,3 +38,13 @@ def db_statistics(df):
     plt.title("Proportion of People with Single vs. Multiple Images")
     plt.show() 
 
+def set_random_seed(random_seed=None):
+    if random_seed is None:
+        random_seed = 13
+    os.environ['PYTHONHASHSEED'] = str(random_seed)
+    np.random.seed(random_seed)
+    torch.manual_seed(random_seed)
+    torch.cuda.manual_seed_all(random_seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+    print(f"Random seed set to: {random_seed}")

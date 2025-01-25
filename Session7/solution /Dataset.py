@@ -88,13 +88,13 @@ class LFWtripletDataset(Dataset):
         pos_dir = os.path.join(image_dir,pos_name,   pos_sample.iloc[0]["images"])
         pos_img = Image.open(pos_dir)     
 
-        # sample from all the possible positive samples 
+        # sample from all the possible negative samples 
         neg_sample = self.people_one_img.sample(n=1)
         neg_name = neg_sample.iloc[0]["name"]
         neg_dir = os.path.join(image_dir, neg_name , neg_sample.iloc[0]["images"])
         neg_img = Image.open(neg_dir)
             
-        # Apply transformations (like resizing, normalizing)
+        # Apply transformations 
         if self.transform:
             anchor = self.transform(anchor_img)
             positive = self.transform(pos_img)

@@ -2,6 +2,8 @@ import torch
 import numpy as np 
 from tqdm import tqdm
 from torch import nn 
+import helper
+import matplotlib.pylab as plt 
 class TripletLoss(nn.Module):
     """ Implementation of the triplet loss function """
     def __init__(self, margin=0.2, reduce="mean"):
@@ -31,7 +33,7 @@ class Trainer:
     Class for training and validating a siamese model
     """
     
-    def __init__(self, model, criterion, train_loader, test_loader, n_iters=1e4):
+    def __init__(self, model, criterion,optimizer, train_loader, test_loader, n_iters=1e4):
         """ Trainer initializer """
         self.model = model
         self.criterion = criterion
@@ -39,7 +41,7 @@ class Trainer:
         self.test_loader = test_loader
         
         self.n_iters = int(n_iters)
-        self.optimizer = torch.optim.Adam(model.parameters(), lr=3e-4, weight_decay=1e-5)
+        self.optimizer = optimizer
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model.to(self.device)
         
@@ -74,7 +76,6 @@ class Trainer:
     
     def fit(self):
         """ Train/Validation loop """
-    
         self.iter_ = 0
         progress_bar = tqdm(total=self.n_iters, initial=0)
         
@@ -96,8 +97,8 @@ class Trainer:
                 self.optimizer.step()
             
                 # updating progress bar
+                progress_bar.update(1)
                 progress_bar.set_description(f"Train Iter {self.iter_}: Loss={round(loss.item(),5)})")
-                
                 # doing some validation every once in a while
                 if(self.iter_ % 250 == 0):
                     cur_losses = self.valid_step()
@@ -109,3 +110,6 @@ class Trainer:
             if(self.iter_ >= self.n_iters):
                 break
         return
+    def visualize_progress(self):
+        helper.visualize_progress(self.train_loss,self.test_loss)
+        plt.show

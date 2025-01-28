@@ -112,4 +112,4 @@ class Trainer:
         return
     def visualize_progress(self):
         helper.visualize_progress(self.train_loss,self.test_loss)
-        plt.show
+        plt.show()

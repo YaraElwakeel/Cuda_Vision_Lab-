@@ -36,7 +36,8 @@ def db_statistics(df):
     plt.figure(figsize=(6, 6))
     plt.pie(sizes, labels=labels, autopct='%1.1f%%', colors=['lightcoral', 'skyblue'])
     plt.title("Proportion of People with Single vs. Multiple Images")
-    plt.show() 
+    plt.show()
+    return top_people 
 
 def set_random_seed(random_seed=None):
     if random_seed is None:

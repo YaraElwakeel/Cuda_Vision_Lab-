@@ -34,7 +34,8 @@ class LFWtripletDataset(Dataset):
         self.read_data()
 
     def statistics(self):
-        helper.db_statistics(self.people_df)
+        top_people = helper.db_statistics(self.people_df)
+        return top_people
         
     def read_data(self):
         

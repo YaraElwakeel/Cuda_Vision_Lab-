@@ -39,6 +39,7 @@ class Freiburg_dataset(Dataset):
         rgb_labels = group_df.loc[group_df['image_type'] == "fl_rgb_labels", "file_path"].values[0]
 
         img_ir_aligned = Image.open(ir_aligned)
+        print(img_ir_aligned)
         img_rgb = Image.open(rgb)
         img_rgb_labels = Image.open(rgb_labels)
         
@@ -46,4 +47,10 @@ class Freiburg_dataset(Dataset):
         ## Apply transformations
         # if self.transform:
         #     image = self.transform(image)
-        return img_ir_aligned, img_rgb,img_rgb_labels
+        # The line `return rgb` in the `__getitem__` method of the `Freiburg_dataset` class is
+        # returning the path to the RGB image file corresponding to the given index `idx`.
+        # return (img_ir_aligned, img_rgb,img_rgb_labels)
+        return  rgb
+        
+        
+        
